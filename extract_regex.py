@@ -11,9 +11,7 @@ sub_var_regex = re.compile(r'^\s*[a-zA-Z_$][\w$]*\s*[=,;]?')
 let_define_regex = re.compile(r'let\s+([\w$,= ]+)\s*;')
 for_start_regex = re.compile(r'(for\s*\(.*)')
 while_start_regex = re.compile(r'(do\s*{|while\s*\(.*?\)\s*{)')
-if_start_regex = re.compile(r'(if\s*\(.*?\)\s*{)')
-else_regex = re.compile(r'else\s*{')
-
+var_regex_str = "[a-zA-Z_$][\\\w$]*?"
 
 
 class FormatVarName(object):
@@ -28,7 +26,6 @@ class FormatVarName(object):
         self.funcs = {func_start: (func_name.strip(), params) for func_start, func_name, params in function_start_regex.findall(self.jscode)}
         self.for_stmts = for_start_regex.findall(self.jscode)
         self.while_stmts = while_start_regex.findall(self.jscode)
-        self.if_stmts = if_start_regex.findall(self.jscode)
 
         self.split2statements()
         self.renew_code(stmts)
@@ -95,7 +92,7 @@ class FormatVarName(object):
                 new_stmt = self._repl_stmt(sub_stmt, flag)
                 new_code.append(new_stmt)
 
-        self.new_code = "".join(new_code)
+        self.new_code = "\s*".join(new_code)
 
     def _split2sub_stmts(self, stmt):
         parts_1 = [part.strip() for part in string_regex.split(stmt) if part]    
@@ -112,7 +109,7 @@ class FormatVarName(object):
 
     def _repl_stmt(self, stmt, flag):
         if stmt in self.strings:
-            return stmt
+            return "\s*" + re.escape(stmt) + "\s*"
 
         if stmt in self.funcs:
             self.state_stack.append("func")
@@ -150,14 +147,6 @@ class FormatVarName(object):
             self.state_stack.append("while")
             self.stack += 1
 
-        if stmt in self.if_stmts:
-            self.state_stack.append("if")
-            self.stack += 1
-
-        if else_regex.search(stmt):
-            self.state_stack.append("else")
-            self.stack += 1
-
         if stmt.startswith("}"):
             self.state_stack.pop()
             self.stack -= 1
@@ -191,13 +180,14 @@ class FormatVarName(object):
             var_list = [var for stack in range(self.stack+1) for var in self.repl_var_hashMap[stack]]
         _var_regex = '|'.join([r'\b%s\b' % var for var in var_list])
         var_regex = re.compile(_var_regex)
-        new_stmt = var_regex.sub(self._repl, stmt)
+        stmt = re.escape(stmt)
+        new_stmt = var_regex.sub(var_regex_str, stmt)
         return new_stmt
 
 
-def get_hash(filename):
+def test2():
     stmts = []
-    with open(filename, "r") as f:
+    with open("./sample.js", "r") as f:
         line = f.readline()
         while line:
             line = line.strip()
@@ -205,20 +195,12 @@ def get_hash(filename):
             line = f.readline()
 
     jscode = "".join(stmts)
-    # md5 = hashlib.md5(jscode.encode('utf-8'))
-    # print(md5.hexdigest())
+    print(jscode)
     fvn = FormatVarName(jscode)
     new_code = fvn.run(stmts)
     print(new_code)
-    md5 = hashlib.md5(new_code.encode('utf-8'))
-    return md5.hexdigest()
+    print(re.match(new_code, jscode))
 
-def test():
-    sample_md5 = get_hash("./sample.js")
-    target_md5 = get_hash("./target.js")
-    print(sample_md5)
-    print(target_md5)
-    print(sample_md5 == target_md5)
 
 if __name__ == "__main__":
-    test()
+    test2()
