@@ -128,7 +128,8 @@ def test():
         print("Matched!")
     else:
         print("Unmatched.")
-
+    print("--------------------------------------------")
+    # problem: cannot match escape characters
     uncmpl_sample = 'function getQueryParams(qs){if(typeof qs===\\"undefined\\"){qs=location.search}qs=qs.replace(/\\\\+/g,\\" \\");var params={},tokens,re=/[?&]?([^=]+)=([^&]*)/g;while(tokens=re.exec(qs)){var name=decodeURIComponent(tokens[1]);var value=decodeURIComponent(tokens[2]);if(value.length==0){continue}if(name.substr(-2)==\\"[]\\"){name=name.subst...\\n\\n'
     uncmpl_regex = get_regex(uncmpl_sample)
     print(uncmpl_regex)

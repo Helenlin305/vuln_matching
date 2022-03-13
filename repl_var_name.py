@@ -45,15 +45,16 @@ func_names = [
     'valueOf',           'at'
 ]
 
-string_regex = re.compile(r'((?<!\\)\'.*?(?<!\\)\'|(?<!\\)\".*?(?<!\\)\"|(?<!\\)`.*?(?<!\\)`|(?<!\\)/.*?(?<!\\)/)')
+string_regex = re.compile(r'((?<!\\)\'.*?(?<!\\)\'|(?<!\\)\".*?(?<!\\)\"|(?<!\\)`.*?(?<!\\)`|(?<!\\)/.*?(?<!\\)/[dgimsuy]?)')
 variable_regex = re.compile(r"([a-zA-Z_$][\w$]*)")
+split_regex = re.compile(r"([a-zA-Z_$][\w$]*|\s)")
 
 end_mark = "...\\n\\n"
 
 class ReplaceVarName(object):
 
-    def __init__(self, snippet):
-        self.snippet = snippet
+    def __init__(self, snippet:str):
+        self.snippet = self.clean(snippet)
         self.varNameGen = self.var_name_gen()
         self.repl_var_hashMap = defaultdict(lambda: defaultdict(list))
 
@@ -64,7 +65,7 @@ class ReplaceVarName(object):
         self.split_snippet()
         self.replacing()
 
-        return self.new_code
+        return self.wrap()
 
     def var_name_gen(self):
         name_list = ['']
@@ -73,7 +74,13 @@ class ReplaceVarName(object):
                 name = name_list[0] + chr(65+i)
                 name_list.append(name)
                 yield name
-            name_list.pop(0)
+            name_list.pop(0)    
+    
+    def clean(self, snippet:str):
+        return snippet.replace("\\n", "\n").replace("\\t", "\t").replace("\\\"", "\"")
+
+    def wrap(self):
+        return self.new_code.replace("\n", "\\n").replace("\t", "\\t")
 
     def split_snippet(self):
         parts = [part for part in string_regex.split(self.snippet) if part]
@@ -82,7 +89,7 @@ class ReplaceVarName(object):
             if part in self.strings: 
                 words.append(part)
                 continue
-            words.extend([word for word in variable_regex.split(part) if word])
+            words.extend([word for word in split_regex.split(part) if word])
 
         self.words = words
 
@@ -145,7 +152,14 @@ def test():
     target_md5 = get_hash(target)
     print(sample_md5)
     print(target_md5)
-    print(sample_md5 == target_md5)
+    if sample_md5 == target_md5:
+        print("Matched!")
+    else:
+        print("Unmatched.")
+
+    uncmpl_sample = 'function getQueryParams(qs){if(typeof qs===\\"undefined\\"){qs=location.search}qs=qs.replace(/\\\\+/g,\\" \\");var params={},tokens,re=/[?&]?([^=]+)=([^&]*)/g;while(tokens=re.exec(qs)){var name=decodeURIComponent(tokens[1]);var value=decodeURIComponent(tokens[2]);if(value.length==0){continue}if(name.substr(-2)==\\"[]\\"){name=name.subst...\\n\\n'
+    print(get_hash(uncmpl_sample))
+
 
 
 if __name__ == "__main__":
