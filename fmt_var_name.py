@@ -205,20 +205,21 @@ def get_hash(filename):
             line = f.readline()
 
     jscode = "".join(stmts)
+    print(jscode)
     # md5 = hashlib.md5(jscode.encode('utf-8'))
     # print(md5.hexdigest())
     fvn = FormatVarName(jscode)
     new_code = fvn.run(stmts)
-    print(new_code)
+    # print(new_code)
     md5 = hashlib.md5(new_code.encode('utf-8'))
     return md5.hexdigest()
 
 def test():
     sample_md5 = get_hash("./sample.js")
     target_md5 = get_hash("./target.js")
-    print(sample_md5)
-    print(target_md5)
-    print(sample_md5 == target_md5)
+    # print(sample_md5)
+    # print(target_md5)
+    # print(sample_md5 == target_md5)
 
 if __name__ == "__main__":
     test()
