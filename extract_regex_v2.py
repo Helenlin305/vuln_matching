@@ -65,10 +65,11 @@ end_mark = "...\\n\\n"
 
 class CodeRegexExtractor(object):
 
-    def __init__(self, snippet):
-        self.snippet = self.clean(snippet)
+    def __init__(self):
+        pass
 
-    def run(self):
+    def run(self, snippet):
+        self.snippet = self.clean(snippet)
         self.var_list = variable_regex.findall(self.snippet)
         self.strings = string_regex.findall(self.snippet)
 
@@ -78,10 +79,12 @@ class CodeRegexExtractor(object):
         return self.wrap()
     
     def clean(self, snippet:str):
-        return snippet.replace("\\n", "\n").replace("\\t", "\t").replace("\\\"", "\"")
+        return re.escape(snippet).replace("\$","$")
+        # return snippet.replace("\\n", "\n").replace("\\t", "\t").replace("\\\"", "\"")
 
     def wrap(self):
-        return self.code_regex.replace("\n", "\\n").replace("\t", "\\t").replace("\"", "\\\"")
+        return self.code_regex
+        # return self.code_regex.replace("\n", "\\n").replace("\t", "\\t").replace("\"", "\\\"")
 
     def split_snippet(self):
         parts = [part for part in string_regex.split(self.snippet) if part]
@@ -101,11 +104,11 @@ class CodeRegexExtractor(object):
 
             if word in self.strings \
                 or word in keywords or word in func_names:
-                code_regex += re.escape(word)
+                code_regex += word
                 continue
 
             if word not in self.var_list:
-                code_regex += re.escape(word)
+                code_regex += word
                 continue
 
             code_regex += var_regex_str
@@ -113,27 +116,24 @@ class CodeRegexExtractor(object):
         self.code_regex = code_regex
 
 
-def get_regex(code_snippet):
-    cre = CodeRegexExtractor(code_snippet)
-    code_regex = cre.run()
-    return code_regex
-
 
 def test():
-    sample = 'function(O, T) {var N = T.split("="),S = t(N[0]),M,R = K,P = 0,U = S.split("]["),Q = U.length - 1;if (/\[/.test(U[0]) && /\]$/.test(U[Q])) {U[Q] = U[Q].replace(/\]$/, "");U = U.shift().split("[").concat(U);Q = U.length - 1;} else {Q = 0;}if (N.length === 2) {M = t(N[1]);if (I) {M = M && !isNaN(M) ? +M : M === "undefined" ? h : J[M] !== h ? J[M] : M;}if (Q) {for (; P <= Q; P++) {S = U[P] === "" ? R.length : U[P];R = R[S] = P < Q ? R[S] || (U[P + 1] && isNaN(U[P + 1]) ? {} : []) : M;}} else {if ($.isArray(K[S])) {K[S].push(M);} else {if (K[S] !== h) {K[S] = [K[S], M];} else {K[S] = M;}}}} else {if (S) {K[S] = I ? h : "";}}}'
-    target = 'function(L, Q) {var K = Q.split("="),P = r(K[0]),J,O = H,M = 0,R = P.split("]["),N = R.length - 1;if (/\[/.test(R[0]) && /\]$/.test(R[N])) {R[N] = R[N].replace(/\]$/, "");R = R.shift().split("[").concat(R);N = R.length - 1;} else {N = 0;}if (K.length === 2) {J = r(K[1]);if (F) {J = J && !isNaN(J) ? +J : J === "undefined" ? i : G[J] !== i ? G[J] : J;}if (N) {for (; M <= N; M++) {P = R[M] === "" ? O.length : R[M];O = O[P] = M < N ? O[P] || (R[M + 1] && isNaN(R[M + 1]) ? {} : []) : J;}} else {if ($.isArray(H[P])) {H[P].push(J);} else {if (H[P] !== i) {H[P] = [H[P], J];} else {H[P] = J;}}}} else {if (P) {H[P] = F ? i : "";}}}'
-    sample_regex = get_regex(sample)
-    print(sample_regex)
-    if re.match(sample_regex, target):
-        print("Matched!")
-    else:
-        print("Unmatched.")
-    print("--------------------------------------------")
+    cre = CodeRegexExtractor()
+    # sample = 'function(O, T) {var N = T.split("="),S = t(N[0]),M,R = K,P = 0,U = S.split("]["),Q = U.length - 1;if (/\[/.test(U[0]) && /\]$/.test(U[Q])) {U[Q] = U[Q].replace(/\]$/, "");U = U.shift().split("[").concat(U);Q = U.length - 1;} else {Q = 0;}if (N.length === 2) {M = t(N[1]);if (I) {M = M && !isNaN(M) ? +M : M === "undefined" ? h : J[M] !== h ? J[M] : M;}if (Q) {for (; P <= Q; P++) {S = U[P] === "" ? R.length : U[P];R = R[S] = P < Q ? R[S] || (U[P + 1] && isNaN(U[P + 1]) ? {} : []) : M;}} else {if ($.isArray(K[S])) {K[S].push(M);} else {if (K[S] !== h) {K[S] = [K[S], M];} else {K[S] = M;}}}} else {if (S) {K[S] = I ? h : "";}}}'
+    # target = 'function(L, Q) {var K = Q.split("="),P = r(K[0]),J,O = H,M = 0,R = P.split("]["),N = R.length - 1;if (/\[/.test(R[0]) && /\]$/.test(R[N])) {R[N] = R[N].replace(/\]$/, "");R = R.shift().split("[").concat(R);N = R.length - 1;} else {N = 0;}if (K.length === 2) {J = r(K[1]);if (F) {J = J && !isNaN(J) ? +J : J === "undefined" ? i : G[J] !== i ? G[J] : J;}if (N) {for (; M <= N; M++) {P = R[M] === "" ? O.length : R[M];O = O[P] = M < N ? O[P] || (R[M + 1] && isNaN(R[M + 1]) ? {} : []) : J;}} else {if ($.isArray(H[P])) {H[P].push(J);} else {if (H[P] !== i) {H[P] = [H[P], J];} else {H[P] = J;}}}} else {if (P) {H[P] = F ? i : "";}}}'
+    # sample_regex = cre.run(sample)
+    # print(sample_regex)
+    # if re.match(sample_regex, sample):
+    #     print("Matched!")
+    # else:
+    #     print("Unmatched.")
+    # print("--------------------------------------------")
     # problem: cannot match escape characters
-    uncmpl_sample = 'function getQueryParams(qs){if(typeof qs===\\"undefined\\"){qs=location.search}qs=qs.replace(/\\\\+/g,\\" \\");var params={},tokens,re=/[?&]?([^=]+)=([^&]*)/g;while(tokens=re.exec(qs)){var name=decodeURIComponent(tokens[1]);var value=decodeURIComponent(tokens[2]);if(value.length==0){continue}if(name.substr(-2)==\\"[]\\"){name=name.subst...\\n\\n'
-    uncmpl_regex = get_regex(uncmpl_sample)
+    uncmpl_sample = 'function (str){if(\\"string\\"!=typeof str)return{};str=trim(str);if(\\"\\"==str)return{};if(\\"?\\"==str.charAt(0))str=str.slice(1);var obj={};var pairs=str.split(\\"&\\");for(var i=0;i<pairs.length;i++){var parts=pairs[i].split(\\"=\\");var key=decode(parts[0]);var m;if(m=pattern.exec(key)){obj[m[1]]=obj[m[1]]||[];obj[m[1]][m...\\n\\n'
+    uncmpl_target = 'function (sss){if(\\"string\\"!=typeof sss)return{};str=trim(str);if(\\"\\"==str)return{};if(\\"?\\"==str.charAt(0))str=str.slice(1);var obj={};var pairs=str.split(\\"&\\");for(var i=0;i<pairs.length;i++){var parts=pairs[i].split(\\"=\\");var key=decode(parts[0]);var m;if(m=pattern.exec(key)){obj[m[1]]=obj[m[1]]||[];obj[m[1]][m...\\n\\n'
+    uncmpl_regex = cre.run(uncmpl_sample)
     print(uncmpl_regex)
-    print(re.match(uncmpl_regex, uncmpl_sample))
+    print(re.match(uncmpl_regex, uncmpl_target))
 
 
 if __name__ == "__main__":
