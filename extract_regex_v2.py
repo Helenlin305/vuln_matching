@@ -3,6 +3,8 @@ from pprint import pprint
 import re
 import hashlib
 
+from snippet_cleaner import cleaner
+
 string_regex = re.compile(r'((?<!\\)\'.*?(?<!\\)\'|(?<!\\)\".*?(?<!\\)\"|(?<!\\)`.*?(?<!\\)`)')
 function_start_regex = re.compile(r'(function(\s+\w+|\s*)\s*\(([^\)]*)\)\s*{)')
 function_split_regex = re.compile(r'(function\s+\w+\s*\([^\)]*\)\s*{|function\s*\([^\)]*\)\s*{)')
@@ -57,11 +59,21 @@ func_names = [
     'valueOf',           'at'
 ]
 
+endmark_list = [
+    "\\n",
+    "...\\n\" ) ),",
+    "...\\n\\n"
+]
+
 string_regex = re.compile(r'((?<!\\)\'.*?(?<!\\)\'|(?<!\\)\".*?(?<!\\)\"|(?<!\\)`.*?(?<!\\)`|(?<!\\)/.*?(?<!\\)/[dgimsuy]?)')
 variable_regex = re.compile(r"([a-zA-Z_$][\w$]*)")
 split_regex = re.compile(r"([a-zA-Z_$][\w$]*|\s)")
 
-end_mark = "...\\n\\n"
+endmark_regex = re.compile('|'.join([re.escape(i)+"$" for i in endmark_list]))
+comment_regex = re.compile(r"//.*\\\\x0a|//.*\.\.\.\\n\\n|//.*\.\.\.\\n\" \) \),")
+hexchar_regex = re.compile(r"\\\\x[0-9a-z]{2}")
+space_regex   = re.compile(r"[\t\n\r\f\v]+| [ ]+")
+
 
 class CodeRegexExtractor(object):
 
@@ -69,7 +81,9 @@ class CodeRegexExtractor(object):
         pass
 
     def run(self, snippet):
-        self.snippet = self.clean(snippet)
+        if not self.clean(snippet):
+            return None
+
         self.var_list = variable_regex.findall(self.snippet)
         self.strings = string_regex.findall(self.snippet)
 
@@ -79,8 +93,22 @@ class CodeRegexExtractor(object):
         return self.wrap()
     
     def clean(self, snippet:str):
-        return re.escape(snippet).replace("\$","$")
+        # 0. clean the comment
+        snippet = comment_regex.sub("", snippet)
+        # 1. convert hex char
+        snippet = hexchar_regex.sub(lambda c: bytearray.fromhex(c.group(0)[-2:]).decode(), snippet)
+        # 2. clean the space characters
+        snippet = space_regex.sub("", snippet)
+        # 3. clean the endmark
+        snippet = endmark_regex.sub("", snippet)
+        ## determine whether this snippet contains enough information
+        if len(snippet) <= 34: return False
+        # 4. replace ' and "
+        snippet = snippet.replace("\\\"", '"').replace("\\'", "'")
+        # 5. escape characters in snippet, and escape the special character $, which is often used for defining a variable in js
+        self.snippet = re.escape(snippet).replace("\$","$")
         # return snippet.replace("\\n", "\n").replace("\\t", "\t").replace("\\\"", "\"")
+        return True
 
     def wrap(self):
         return self.code_regex
@@ -99,13 +127,18 @@ class CodeRegexExtractor(object):
 
     def replacing(self):
         code_regex = ""
-
         for word in self.words:
 
-            if word in self.strings \
-                or word in keywords or word in func_names:
+            if word in self.strings:
+                word = word[1:-1]
+                code_regex += re.escape("('|\")") + word + re.escape("('|\")")
+            
+            if word in keywords or word in func_names:
                 code_regex += word
                 continue
+
+            # if '\\}' in word:
+            #     code_regex += word.replace('\\}', ';?\\}')
 
             if word not in self.var_list:
                 code_regex += word
@@ -129,11 +162,14 @@ def test():
     #     print("Unmatched.")
     # print("--------------------------------------------")
     # problem: cannot match escape characters
-    uncmpl_sample = 'function (str){if(\\"string\\"!=typeof str)return{};str=trim(str);if(\\"\\"==str)return{};if(\\"?\\"==str.charAt(0))str=str.slice(1);var obj={};var pairs=str.split(\\"&\\");for(var i=0;i<pairs.length;i++){var parts=pairs[i].split(\\"=\\");var key=decode(parts[0]);var m;if(m=pattern.exec(key)){obj[m[1]]=obj[m[1]]||[];obj[m[1]][m...\\n\\n'
-    uncmpl_target = 'function (sss){if(\\"string\\"!=typeof sss)return{};str=trim(str);if(\\"\\"==str)return{};if(\\"?\\"==str.charAt(0))str=str.slice(1);var obj={};var pairs=str.split(\\"&\\");for(var i=0;i<pairs.length;i++){var parts=pairs[i].split(\\"=\\");var key=decode(parts[0]);var m;if(m=pattern.exec(key)){obj[m[1]]=obj[m[1]]||[];obj[m[1]][m...\\n\\n'
-    uncmpl_regex = cre.run(uncmpl_sample)
-    print(uncmpl_regex)
-    print(re.match(uncmpl_regex, uncmpl_target))
+    # uncmpl_sample = "function (t){var t=t?t.split(\\\"?\\\")[1]:window.location.search.slice(1),r={};if(t)for(var e=(t=t.split(\\\"#\\\")[0]).split(\\\"&\\\"),n=0;n<e.length;n++){var i,o=e[n].split(\\\"=\\\"),a=o[0],s=void 0===o[1]||o[1],a=a.toLowerCase();\\\"string\\\"==typeof s&&(s=s.toLowerCase()),a.match(/\\\\[(\\\\d+)?\\\\]$/)?(r[i=a.replace(/\\\\[(\\\\d+)?\\\\]/,\\\"\\\")]||(...\\n\\n"
+    # uncmpl_target = "function (e){var e=e?e.split(\\\"?\\\")[1]:window.location.search.slice(1),t={};if(e)for(var n=(e=e.split(\\\"#\\\")[0]).split(\\\"&\\\"),o=0;o<n.length;o++){var i,r=n[o].split(\\\"=\\\"),d=r[0],a=void 0===r[1]||r[1],d=d.toLowerCase();\\\"string\\\"==typeof a&&(a=a.toLowerCase()),d.match(/\\\\[(\\\\d+)?\\\\]$/)?(t[i=d.replace(/\\\\[(\\\\d+)?\\\\]/,\\\"\\\")]||(...\\n\\n"
+    # uncmpl_regex = cre.run(uncmpl_sample)
+    # print(uncmpl_regex)
+    # print(cleaner(uncmpl_target))
+    # print(re.search(uncmpl_regex, cleaner(uncmpl_target)))
+    s = "function l(e,t,i,n){var s=e.shift();if(!s){if(p(t[i])){t[i].push(n)}else if(\"object\"==typeof t[i]){t[i]=n}else if(\"undefined\"==typeof t[i]){t[i]=n}else{t[i]=[t[i],n]}}else{v"
+    print(cre.run(s))
 
 
 if __name__ == "__main__":
