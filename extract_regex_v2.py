@@ -3,7 +3,7 @@ from pprint import pprint
 import re
 import hashlib
 
-from snippet_cleaner import cleaner
+from utils import cleaner
 
 string_regex = re.compile(r'((?<!\\)\'.*?(?<!\\)\'|(?<!\\)\".*?(?<!\\)\"|(?<!\\)`.*?(?<!\\)`)')
 function_start_regex = re.compile(r'(function(\s+\w+|\s*)\s*\(([^\)]*)\)\s*{)')
@@ -17,22 +17,22 @@ var_regex_str = r"[a-zA-Z_$][\w$]*?" #[a-zA-Z0-9_$]
 
 
 keywords = [
-    'abstract', 'arguments','boolean',  'break',
-    'byte',     'case',     'catch',    'char',
-    'const',    'continue', 'debugger', 'default',
-    'delete',   'do',       'double',   'else',
-    'eval',	    'false',    'final',    'finally',
-    'float',    'for',      'function', 'goto',
-    'if',       'implements', 'in',     'instanceof',
-    'int',      'interface','let',      'long',
-    'native',   'new',      'null',     'package',
-    'private',  'protected','public',   'return',
-    'short',    'static',   'switch',   'synchronized',
-    'this',     'throw',    'throws',   'transient',
-    'true',     'try',      'typeof',   'var',
-    'void',     'volatile', 'while',    'with',
-    'yield',    'class',    'enum',     'export',
-    'extends',  'import',   'super',
+    'abstract', 'arguments',  'boolean',  'break',
+    'byte',     'case',       'catch',    'char',
+    'const',    'continue',   'debugger', 'default',
+    'delete',   'do',         'double',   'else',
+    'eval',	    'false',      'final',    'finally',
+    'float',    'for',        'function', 'goto',
+    'if',       'implements', 'in',       'instanceof',
+    'int',      'interface',  'let',      'long',
+    'native',   'new',        'null',     'package',
+    'private',  'protected',  'public',   'return',
+    'short',    'static',     'switch',   'synchronized',
+    'this',     'throw',      'throws',   'transient',
+    'true',     'try',        'typeof',   'var',
+    'void',     'volatile',   'while',    'with',
+    'yield',    'class',      'enum',     'export',
+    'extends',  'import',     'super',
 ]
 
 func_names = [
@@ -67,7 +67,7 @@ endmark_list = [
 
 string_regex = re.compile(r'((?<!\\)\'.*?(?<!\\)\'|(?<!\\)\".*?(?<!\\)\"|(?<!\\)`.*?(?<!\\)`|(?<!\\)/.*?(?<!\\)/[dgimsuy]?)')
 variable_regex = re.compile(r"([a-zA-Z_$][\w$]*)")
-split_regex = re.compile(r"([a-zA-Z_$][\w$]*|\s)")
+split_regex = re.compile(r"([a-zA-Z_$][\w$]*|\\\s|\s)")
 
 endmark_regex = re.compile('|'.join([re.escape(i)+"$" for i in endmark_list]))
 comment_regex = re.compile(r"//.*\\\\x0a|//.*\.\.\.\\n\\n|//.*\.\.\.\\n\" \) \),")
@@ -105,14 +105,15 @@ class CodeRegexExtractor(object):
         if len(snippet) <= 34: return False
         # 4. replace ' and "
         snippet = snippet.replace("\\\"", '"').replace("\\'", "'")
-        # 5. escape characters in snippet, and escape the special character $, which is often used for defining a variable in js
+        # 5. unescape "\\\\"
+        snippet = snippet.replace("\\\\", "\\")
+        # 6. escape characters in snippet, and escape the special character $, which is often used for defining a variable in js
         self.snippet = re.escape(snippet).replace("\$","$")
         # return snippet.replace("\\n", "\n").replace("\\t", "\t").replace("\\\"", "\"")
         return True
 
     def wrap(self):
         return self.code_regex
-        # return self.code_regex.replace("\n", "\\n").replace("\t", "\\t").replace("\"", "\\\"")
 
     def split_snippet(self):
         parts = [part for part in string_regex.split(self.snippet) if part]
@@ -127,18 +128,26 @@ class CodeRegexExtractor(object):
 
     def replacing(self):
         code_regex = ""
-        for word in self.words:
+        flag = False
+        for i, word in enumerate(self.words):
 
             if word in self.strings:
                 word = word[1:-1]
-                code_regex += re.escape("('|\")") + word + re.escape("('|\")")
+                code_regex += "('|\")" + word + "('|\")"
+                continue
             
             if word in keywords or word in func_names:
                 code_regex += word
+                flag = True
                 continue
 
             # if '\\}' in word:
             #     code_regex += word.replace('\\}', ';?\\}')
+            if word == "\\ ":
+                next = self.words[i+1] if i+1 < len(self.words) else ""
+                code_regex += word if (not next or next in self.var_list) and flag else "(\\ )?"
+                flag = False
+                continue
 
             if word not in self.var_list:
                 code_regex += word
@@ -168,8 +177,13 @@ def test():
     # print(uncmpl_regex)
     # print(cleaner(uncmpl_target))
     # print(re.search(uncmpl_regex, cleaner(uncmpl_target)))
-    s = "function l(e,t,i,n){var s=e.shift();if(!s){if(p(t[i])){t[i].push(n)}else if(\"object\"==typeof t[i]){t[i]=n}else if(\"undefined\"==typeof t[i]){t[i]=n}else{t[i]=[t[i],n]}}else{v"
-    print(cre.run(s))
+    # s = "function x(a){a=a.split(/\\\\?|&/);for(var b={},c,d,k=0;k<a.length;k++)if(a[k]){c=a[k].split(\\\"=\\\");try{d=decodeURIComponent(c[1]||\\\"\\\")}catch(ca){d=c[1]||\\\"\\\"}b[c[0]]=d}return b}\\n"
+    s = "function (part){if(part){part=part.split(\\\"+\\\").join(\\\" \\\"),part.replace(\\\"%252c\\\",\\\",\\\");var eq=part.indexOf(\\\"=\\\"),key=eq>-1?part.substr(0,eq):part,val=eq>-1?part.substr(eq+1):\\\"\\\";try{val=eq>-1?decodeURIComponent(part.substr(eq+1)):\\\"\\\"}catch(err){console.log(\\\"Decode Failed on: \\\"+val,err)}var from=key.indexOf(\\\"[\\\");if(-...\\n\\n"
+    ss = cleaner(s)
+    sre = cre.run(s)
+    print(sre)
+    print(ss)
+    print(re.search(sre, ss))
 
 
 if __name__ == "__main__":

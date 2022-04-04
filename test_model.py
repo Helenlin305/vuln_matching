@@ -3,7 +3,7 @@ from extract_regex_v2 import CodeRegexExtractor
 import json
 import re
 from collections import defaultdict
-from snippet_cleaner import cleaner
+from utils import cleaner
 
 codeRegexExtractor = CodeRegexExtractor()
 snippet_regex_dict = defaultdict(list)
