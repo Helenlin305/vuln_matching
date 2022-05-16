@@ -11,7 +11,7 @@ sub_var_regex = re.compile(r'^\s*[a-zA-Z_$][\w$]*\s*[=,;]?')
 let_define_regex = re.compile(r'let\s+([\w$,= ]+)\s*;')
 for_start_regex = re.compile(r'(for\s*\(.*)')
 while_start_regex = re.compile(r'(do\s*{|while\s*\(.*?\)\s*{)')
-var_regex_str = "[a-zA-Z_$][\\\w$]*?"
+var_regex_str = "[a-zA-Z_$][\\\w$]*?" #[a-zA-Z0-9_$]
 
 
 class FormatVarName(object):

@@ -183,19 +183,19 @@ class VulnRegexMatcher(object):
 def main():
     vrm = VulnRegexMatcher()
 
-    vrm.initialize_dataset("web_report_new.json")
-    vrm.initialize_dataset("web_report.json")
-    vrm.dump_dataset("vul_regex.json")
-    vrm.dump_dataset("vul_regex_clean.json", clean=True)
+    vrm.initialize_dataset("./input/web_report_new.json")
+    vrm.initialize_dataset("./input/web_report.json")
+    vrm.dump_dataset("./output/vul_regex.json")
+    vrm.dump_dataset("./output/vul_regex_clean.json", clean=True)
     vrm.show_statistics()
 
     vrm.compress_regex_dataset()
-    vrm.dump_compressed_dataset("compressed_regex.json")
+    vrm.dump_compressed_dataset("./output/compressed_regex.json")
     vrm.show_statistics(compress=True)
 
-    vrm.load_query_dataset("query_set.json")
+    vrm.load_query_dataset("./input/query_set.json")
     vrm.process()
-    vrm.dump_matched_result("matched_result.json")
+    vrm.dump_matched_result("./output/matched_result.json")
     vrm.show_matched_result()
 
 
